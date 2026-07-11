@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>iPhone 定位模拟控制器</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部栏 -->
+        <header class="topbar">
+            <div class="brand">
+                <span class="logo">📍</span>
+                <div>
+                    <h1>iPhone 定位模拟控制器</h1>
+                    <p class="subtitle">USB 连接 · 路径模拟 · 速度可控 · 一键恢复</p>
+                </div>
+            </div>
+            <div class="topbar-status">
+                <span id="envBadge" class="badge badge-info">环境检测中…</span>
+                <span id="connBadge" class="badge badge-warn">未连接设备</span>
+            </div>
+        </header>
+
+        <main class="layout">
+            <!-- 左侧控制面板 -->
+            <aside class="sidebar">
+                <!-- 设备连接 -->
+                <section class="card">
+                    <h2>① 设备连接</h2>
+                    <div class="row">
+                        <select id="deviceSelect" class="grow"><option value="">— 点击刷新查找设备 —</option></select>
+                        <button id="refreshBtn" class="btn btn-ghost" title="刷新设备列表">🔄</button>
+                        <button id="diagBtn" class="btn btn-ghost" title="运行诊断，排查连接问题">🔍 诊断</button>
+                    </div>
+                    <div id="diagResult" class="diag-result hidden"></div>
+                    <div class="row">
+                        <button id="connectBtn" class="btn btn-primary grow">连接</button>
+                        <button id="disconnectBtn" class="btn btn-ghost" disabled>断开</button>
+                    </div>
+                    <div class="row">
+                        <button id="devModeBtn" class="btn btn-warn grow" disabled>🔧 开启开发者模式</button>
+                        <button id="devModeRevealBtn" class="btn btn-ghost" disabled title="仅在设置菜单中显示「开发者模式」选项，不自动启用">👁 显示菜单</button>
+                    </div>
+                    <div id="devModeInfo" class="devmode-info hidden"></div>
+                    <details class="guide">
+                        <summary>📋 连接指引（首次必读）</summary>
+                        <ol>
+                            <li>安装 <b>Apple Mobile Device Support</b>：装 iTunes，或从 Microsoft Store 装「Apple Devices」。</li>
+                            <li>iPhone <b>解锁</b>，用 <b>USB 数据线</b>连接电脑，手机弹窗点「<b>信任</b>」并输入密码。</li>
+                            <li>iOS 16+ 需开启「开发者模式」：若设置 → 隐私与安全性 中<b>看不到</b>该选项，先选中设备后点上方「🔧 开启开发者模式」，按提示在手机弹窗确认并重启；重启后该菜单会出现并已开启。</li>
+                            <li>点击上方「🔄」刷新，选中设备后点「连接」。</li>
+                        </ol>
+                        <p class="tip">提示：不越狱即可使用，依赖 Apple 官方开发者能力；本程序不收集任何真实位置。</p>
+                    </details>
+                </section>
+
+                <!-- 路径规划 -->
+                <section class="card">
+                    <h2>② 路径规划</h2>
+                    <p class="hint">在地图上点击添加航点；可拖动标记微调；右键标记删除。</p>
+                    <div class="row">
+                        <input id="latInput" type="number" step="0.000001" placeholder="纬度 lat" />
+                        <input id="lonInput" type="number" step="0.000001" placeholder="经度 lon" />
+                        <button id="addCoordBtn" class="btn btn-ghost">添加</button>
+                    </div>
+                    <div class="row">
+                        <button id="undoBtn" class="btn btn-ghost grow">↩ 撤销</button>
+                        <button id="clearBtn" class="btn btn-danger-ghost grow">清空路径</button>
+                    </div>
+                    <div class="path-info">
+                        <div><span>航点</span><b id="wpCount">0</b></div>
+                        <div><span>总距离</span><b id="totalKm">0.000 km</b></div>
+                        <div><span>预计耗时</span><b id="etaText">—</b></div>
+                    </div>
+                    <button id="previewBtn" class="btn btn-ghost full">▶ 预览路径轨迹（不下发设备）</button>
+                </section>
+
+                <!-- 速度设置 -->
+                <section class="card">
+                    <h2>③ 速度设置 <span class="unit">km/h</span></h2>
+                    <div class="row speed-row">
+                        <input id="speedRange" type="range" min="0.1" max="200" step="0.1" value="20" />
+                        <input id="speedInput" type="number" min="0.1" max="2000" step="0.1" value="20" />
+                    </div>
+                    <div class="preset-row">
+                        <button class="chip" data-speed="4">步行 4</button>
+                        <button class="chip" data-speed="15">骑行 15</button>
+                        <button class="chip" data-speed="40">驾车 40</button>
+                        <button class="chip" data-speed="100">高速 100</button>
+                    </div>
+                </section>
+
+                <!-- 模拟控制 -->
+                <section class="card">
+                    <h2>④ 模拟控制</h2>
+                    <div class="sim-settings">
+                        <div class="setting-row">
+                            <label for="loopInput" class="setting-label">🔁 循环次数</label>
+                            <div class="setting-input">
+                                <input id="loopInput" type="number" min="0" max="10000" step="1" value="0" />
+                                <span class="setting-unit">次</span>
+                            </div>
+                            <span class="setting-hint">0=单次</span>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">👟 随机误差</span>
+                            <label class="switch" title="为轨迹叠加 ±5m 自然跑步随机偏移">
+                                <input id="jitterToggle" type="checkbox" />
+                                <span class="slider"></span>
+                            </label>
+                            <span class="setting-hint" id="jitterHint">关闭</span>
+                        </div>
+                    </div>
+                    <div class="grid2">
+                        <button id="startBtn" class="btn btn-primary">▶ 开始</button>
+                        <button id="pauseBtn" class="btn btn-warn" disabled>⏸ 暂停</button>
+                        <button id="resumeBtn" class="btn btn-primary" disabled>⏵ 继续</button>
+                        <button id="stopBtn" class="btn btn-ghost" disabled>⏹ 停止</button>
+                    </div>
+                    <button id="restoreBtn" class="btn btn-danger full">🔄 恢复实际定位</button>
+                    <button id="exitBtn" class="btn btn-danger-ghost full">✕ 退出程序</button>
+                </section>
+
+                <!-- 运行状态 -->
+                <section class="card">
+                    <h2>运行状态</h2>
+                    <div class="state-line">
+                        <span>状态</span>
+                        <b id="simState">空闲</b>
+                    </div>
+                    <div class="progress-wrap">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <div class="state-line">
+                        <span>当前坐标</span>
+                        <b id="curCoord">—</b>
+                    </div>
+                    <div class="state-line">
+                        <span>已行进 / 总距离</span>
+                        <b id="curProgress">—</b>
+                    </div>
+                    <div class="state-line">
+                        <span>当前速度</span>
+                        <b id="curSpeed">—</b>
+                    </div>
+                    <div class="state-line">
+                        <span>循环进度</span>
+                        <b id="curLoop">—</b>
+                    </div>
+                    <div class="state-line">
+                        <span>随机误差</span>
+                        <b id="curJitter">关</b>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- 地图 -->
+            <section class="map-wrap">
+                <div id="map"></div>
+                <div class="map-overlay">
+                    <button id="layerBtn" class="btn btn-ghost">🗺 街道</button>
+                    <span id="mapHint" class="map-hint">点击地图添加航点</span>
+                </div>
+            </section>
+        </main>
+
+        <!-- 消息条 -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+    <script src="app.js"></script>
+</body>
+</html>

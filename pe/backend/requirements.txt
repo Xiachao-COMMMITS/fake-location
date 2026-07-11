@@ -1,0 +1,18 @@
+# iPhone 定位模拟控制器 - 后端依赖
+# Python 3.9+ (在 3.12.4 上测试通过)
+#
+# 核心依赖：
+#   pymobiledevice3 : 通过 USB 与 iPhone 通信 (libimobiledevice 的 Python 实现)
+#   fastapi         : Web 服务框架
+#   uvicorn         : ASGI 服务器 (uvicorn[standard] 含 websocket/httptools 加速)
+#   pydantic        : 数据模型校验
+#
+# 安装：pip install -r requirements.txt
+# 注意：pymobiledevice3 在 Windows 上还需要 Apple Mobile Device Support
+#       (随 iTunes 或 Microsoft Store 的 "Apple Devices" 应用一同安装)，
+#       用于提供 usbmuxd 通信通道。详见 README.md。
+
+pymobiledevice3>=4.0.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.6.0
